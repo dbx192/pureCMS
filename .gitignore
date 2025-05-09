@@ -1,0 +1,12 @@
+/runtime
+.idea
+.vscode
+.cursor
+.github
+.idea
+/vendor
+*.log
+.env
+/tests/tmp
+/tests/.phpunit.result.cache
+**/public/upload
