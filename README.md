@@ -1,6 +1,7 @@
-# ACMS 内容管理系统插件
+# Pure CMS 内容管理系统插件
 
-ACMS（Advanced Content Management System）是基于 Webman 框架开发的内容管理系统插件，支持文章、分类、标签、评论等常用 CMS 功能，适用于技术博客、资讯站点等内容型网站。
+Pure CMS（Advanced Content Management System）是基于PHP的 Webman 框架开发的内容管理系统插件，支持文章、分类、标签、评论等常用 CMS 功能，适用于技术博客、资讯站点等内容型网站。
+
 
 ## 主要功能
 
@@ -8,26 +9,136 @@ ACMS（Advanced Content Management System）是基于 Webman 框架开发的内�
 - 分类管理：多级分类，支持 SEO 字段
 - 标签管理：标签增删改查，文章标签关联
 - 评论管理：评论审核、回复、删除、点赞功能
-- 前台展示：文章列表、详情、分类、标签、搜索、评论（需登录）
-- 后台管理：基于 Webman Admin，Webman User支持权限与菜单集成
+- 前台展示：文章列表、详情、分类、标签、搜索、评论、收藏、点赞（需登录）
+- 后台管理：基于 Webman Admin，user支持权限与菜单集成
 
-## 安装方法
 
-1. **解压插件**
-   将 `plugin/acms.zip` 解压到 `plugin/acms/` 目录下，或直接将源码放入 `plugin/acms/`。
+## 环境要求
 
-2. **导入数据库**
-   执行 `php webman app-plugin:install acms`，创建所需数据表和初始数据。或手动执行 `plugin/acms/install.sql`。
+- php版本：>8.1
+- 必须的php拓展：common|pdo|redis|openssl|ctype
 
-3. **注册路由**
-   插件自带路由文件 `plugin/acms/config/route.php`，Webman 会自动加载。
+## 部署
+### 1. 拉取代码
+```
+git clone git@github.com:dbx192/pureCMS.git
+```
+### 2. 安装依赖
+```
+composer install
+```
 
-4. **注册菜单（可选）**
-   插件自带菜单配置 `plugin/acms/config/menu.php`，安装时会自动导入到后台菜单。
+### 3. 修改配置
+- 修改config\database.php文件中的hots,port,user,password等数据库配置
+- 修改config\redis.php文件中的密码配置
+- 修改config\app.php中debug配置：
+```
+'debug' => env('APP_DEBUG', false), // 改为 true 或 false
+```
 
-5. **访问后台**
-   后台地址：`/app/admin/acms/article/index`  
-   前台地址：`/app/acms`
+### 4. 导入数据库
+** 数据库文件中已有建库语句，完整导入即可 **
+
+```
+source pure_cms.sql
+// 或者navicat导入
+```
+### 5. 启动服务
+
+#### linux环境下运行：
+```
+php start start.php -d
+```
+#### windows环境下运行：
+```
+php windows.php start
+```
+
+## 账号
+** config\process.php可修改端口，默认端口为8787 **
+
+### 管理账号：
+http://127.0.0.1:8787/app/admin#
+- 用户名：admin
+- 密码：123456
+
+### 测试账号：
+http://127.0.0.1:8787/app/Pure CMS
+- 用户名：testUser
+- 密码：123456
+
+### 如果使用nginx反向代理，需要修改nginx配置文件，添加以下配置：
+
+> 请把ask.nbfuli.cn改成你自己的域名
+
+```
+upstream webman {
+    server 127.0.0.1:8787;
+    keepalive 10240;
+}
+
+# Define the limit zone and parameters
+limit_req_zone $binary_remote_addr zone=req_limit:10m rate=3r/s;
+
+server {
+    listen 80;
+    listen [::]:80;
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name ask.nbfuli.cn;
+
+    ssl_certificate /usr/local/nginx/conf/ssl/ask.nbfuli.cn.pem;
+    ssl_certificate_key /usr/local/nginx/conf/ssl/ask.nbfuli.cn.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers TLS13-AES-256-GCM-SHA384:TLS13-CHACHA20-POLY1305-SHA256:EECDH+AESGCM:EECDH+CHACHA20;
+    ssl_prefer_server_ciphers on;
+    ssl_session_timeout 10m;
+    ssl_session_cache shared:SSL:10m;
+    ssl_buffer_size 1400;
+    add_header Strict-Transport-Security "max-age=15768000" always;
+    ssl_stapling on;
+    ssl_stapling_verify on;
+
+    access_log /data/wwwlogs/ask.nbfuli.cn_nginx.log combined;
+    index index.html index.htm index.php;
+    root /www/askme-webman/public;
+
+
+    # Static files caching
+    location ~* \.(js|css|gif|jpg|jpeg|png|bmp|swf|flv|mp4|ico)$ {
+        expires 30d;
+        access_log off;
+    }
+
+    location ^~ / {
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header Host $http_host;
+      proxy_set_header X-Forwarded-Proto $scheme;
+      proxy_http_version 1.1;
+      proxy_set_header Connection "keep-alive";
+      if (!-f $request_filename){
+          proxy_pass http://webman;
+      }
+    }
+
+    # Restricted locations
+    location /secret-source {
+        return 403;
+    }
+
+    location /view-source {
+        return 403;
+    }
+
+    location ~ /(\.user\.ini|\.ht|\.git|\.svn|\.project|LICENSE|README\.md) {
+        deny all;
+    }
+
+    location /.well-known {
+        allow all;
+    }
+}
+```
 
 ## 目录结构
 
@@ -92,3 +203,17 @@ plugin/
 
 **作者**：ouyangyi  
 **开源协议**：MIT
+
+
+
+![首页](https://www.workerman.net/upload/img/20250429/2968106dec1ba9.png)
+
+![文章详情页](https://www.workerman.net/upload/img/20250429/2968106deffdd2.png)
+
+![后台管理页面](https://www.workerman.net/upload/img/20250429/2968106df23963.png)
+
+![文章编辑页面，支持md](https://www.workerman.net/upload/img/20250429/2968106df6c19c.png)
+
+![分类管理](https://www.workerman.net/upload/img/20250429/2968106dfbba7d.png)
+
+![评论管理](https://www.workerman.net/upload/img/20250429/2968106e01d5e0.png)

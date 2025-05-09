@@ -1,124 +1,195 @@
-ACMS Content Management System Plugin
+# Pure CMS Content Management System Plugin
 
-ACMS (Advanced Content Management System) is a content management system plugin developed based on the Webman framework. It supports common CMS features such as articles, categories, tags, and comments, making it suitable for content-based websites like technical blogs and news portals.
+Pure CMS (Advanced Content Management System) is a content management system plugin developed based on the php Webman framework. It supports common CMS functions such as articles, categories, tags, comments, etc., and is suitable for content-based websites such as technical blogs and information portals.
 
-Key Features
+## Main Features
+- Article Management: Publish, edit, delete, sticky, recommend, and switch status.
+- Category Management: Multi-level categories with SEO fields support.
+- Tag Management: CRUD operations for tags and tag-article associations.
+- Comment Management: Comment review, reply, delete, and like functions.
+- Frontend Display: Article lists, details, categories, tags, search, and comments (login required).
+- Backend Management: Based on Webman Admin with permission and menu integration support from Webman User.
 
-• Article Management: Publish, edit, delete, pin, recommend, and toggle status
+## Environment Requirements
+- PHP Version: >8.1
+- Required PHP Extensions: common|pdo|redis|openssl|ctype
 
-• Category Management: Multi-level categories with SEO field support
+## Deployment
+### 1. Pull the Code
+```bash
+git clone git@github.com:dbx192/pureCMS.git
+```
 
-• Tag Management: Add, edit, delete, and search tags, with article-tag associations
+### 2. Install Dependencies
+```bash
+composer install
+```
 
-• Comment Management: Comment review, reply, delete, and like functionality
+### 3. Modify Configuration
+- Update database configuration (host, port, user, password, etc.) in the `config/database.php` file.
+- Update Redis password configuration in the `config/redis.php` file.
+- Modify the debug configuration in `config/app.php`:
+```php
+'debug' => env('APP_DEBUG', false), // Change to true or false
+```
 
-• Frontend Display: Article lists, details, categories, tags, search, and comments (login required)
+### 4. Import Database
+**The database file already contains database creation statements. Import it completely.**
+```bash
+source pure_cms.sql
+// Or import via Navicat
+```
 
-• Admin Panel: Based on Webman Admin, with Webman User support for permission and menu integration
+### 5. Start the Service
+#### Run on Linux:
+```bash
+php start start.php -d
+```
+
+#### Run on Windows:
+```bash
+php windows.php start
+```
+
+## Account Information
+**The default port is 8787. You can modify it in the `config/process.php` file.**
+
+### Admin Account:
+http://127.0.0.1:8787/app/admin#
+- Username: admin
+- Password: 123456
+
+### Test Account:
+http://127.0.0.1:8787/app/Pure CMS
+- Username: testUser
+- Password: 123456
+
+### If using Nginx reverse proxy, add the following configuration to your Nginx config file:
+> Replace `ask.nbfuli.cn` with your own domain name
+
+```nginx
+upstream webman {
+    server 127.0.0.1:8787;
+    keepalive 10240;
+}
+
+# Define the limit zone and parameters
+limit_req_zone $binary_remote_addr zone=req_limit:10m rate=3r/s;
+
+server {
+    listen 80;
+    listen [::]:80;
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name ask.nbfuli.cn;
+
+    ssl_certificate /usr/local/nginx/conf/ssl/ask.nbfuli.cn.pem;
+    ssl_certificate_key /usr/local/nginx/conf/ssl/ask.nbfuli.cn.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers TLS13-AES-256-GCM-SHA384:TLS13-CHACHA20-POLY1305-SHA256:EECDH+AESGCM:EECDH+CHACHA20;
+    ssl_prefer_server_ciphers on;
+    ssl_session_timeout 10m;
+    ssl_session_cache shared:SSL:10m;
+    ssl_buffer_size 1400;
+    add_header Strict-Transport-Security "max-age=15768000" always;
+    ssl_stapling on;
+    ssl_stapling_verify on;
+
+    access_log /data/wwwlogs/ask.nbfuli.cn_nginx.log combined;
+    index index.html index.htm index.php;
+    root /www/askme-webman/public;
+
+    # Static files caching
+    location ~* \.(js|css|gif|jpg|jpeg|png|bmp|swf|flv|mp4|ico)$ {
+        expires 30d;
+        access_log off;
+    }
+
+    location ^~ / {
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header Host $http_host;
+      proxy_set_header X-Forwarded-Proto $scheme;
+      proxy_http_version 1.1;
+      proxy_set_header Connection "keep-alive";
+      if (!-f $request_filename){
+          proxy_pass http://webman;
+      }
+    }
+
+    # Restricted locations
+    location /secret-source {
+        return 403;
+    }
+
+    location /view-source {
+        return 403;
+    }
+
+    location ~ /(\.user\.ini|\.ht|\.git|\.svn|\.project|LICENSE|README\.md) {
+        deny all;
+    }
+
+    location /.well-known {
+        allow all;
+    }
+}
+```
 
 
-Installation
 
-1. Extract the Plugin  
-   Unzip `plugin/acms.zip` into the `plugin/acms/` directory, or place the source code directly in `plugin/acms/`.
-
-2. Import Database  
-   Run `php webman app-plugin:install acms` to create the required database tables and initial data. Alternatively, manually execute `plugin/acms/install.sql`.
-
-3. Register Routes  
-   The plugin includes a route file `plugin/acms/config/route.php`, which Webman will load automatically.
-
-4. Register Menus (Optional)  
-   The plugin includes menu configuration `plugin/acms/config/menu.php`, which will be automatically imported into the admin panel during installation.
-
-5. Access Admin Panel  
-   Admin URL: `/app/admin/acms/article/index`  
-   Frontend URL: `/app/acms`
-
-Directory Structure
-
+## Directory Structure
 ```
 plugin/
   acms/
-    install.sql                // Database schema and initial data
+    install.sql                // Database structure and initial data
     readme.md                  // Plugin documentation
     api/                       // API-related code
     app/                       // Controllers, models, services, etc.
-    config/                    // Route, menu, and other configurations
-    public/                    // Static assets
+    config/                    // Configuration for routes, menus, etc.
+    public/                    // Static resources
 ```
 
-Route Configuration
+## Route Explanation
+- Frontend Route Prefix: `/app/acms`
+  - Article List: `/app/acms`
+  - Article Detail: `/app/acms/article/{id}`
+  - Category Page: `/app/acms/category/{id}`
+  - Tag Page: `/app/acms/tag/{id}`
+  - Search Page: `/app/acms/search`
+  - Comment Submission: `/app/acms/comment/add`
 
-• Frontend Route Prefix: `/app/acms`
+- Backend Route Prefix: `/app/admin/acms`
+  - Article Management: `/app/admin/acms/article/index`
+  - Category Management: `/app/admin/acms/category/index`
+  - Tag Management: `/app/admin/acms/tag/index`
+  - Comment Management: `/app/admin/acms/comment/index`
 
-  • Article List: `/app/acms`
+## Common Issues
+### 1. 404 Error for Backend Menus/Pages
+- Ensure that the paths in `plugin/acms/config/menu.php` and `plugin/acms/config/route.php` are all `/app/admin/acms/xxx`.
+- Clear Webman cache (delete cache files under `runtime/`).
+- Verify that the database tables and initial data have been imported correctly.
 
-  • Article Details: `/app/acms/article/{id}`
+### 2. Route Conflicts or Invalid Routes
+- Check `config/route.php` for conflicting route names.
+- Ensure the plugin directory name is `acms` and matches the route and menu configurations.
 
-  • Category Page: `/app/acms/category/{id}`
+### 3. Database Connection Failure
+- Check the database configuration in `config/database.php` to ensure it matches your environment.
 
-  • Tag Page: `/app/acms/tag/{id}`
+## Suggestions for Secondary Development
+- Controllers, models, and views follow Webman specifications and can be directly extended.
+- Modify `config/menu.php` to customize menus and permissions.
+- Customize frontend pages in the `view/` directory.
+- Supports batch query optimization to improve performance for large data queries.
+- New article ID association function for easier content aggregation.
+- Categories and menus support multi-level nesting with dynamic level rendering.
 
-  • Search Page: `/app/acms/search`
-
-  • Comment Submission: `/app/acms/comment/add`
-
-
-• Admin Route Prefix: `/app/admin/acms`
-
-  • Article Management: `/app/admin/acms/article/index`
-
-  • Category Management: `/app/admin/acms/category/index`
-
-  • Tag Management: `/app/admin/acms/tag/index`
-
-  • Comment Management: `/app/admin/acms/comment/index`
-
-
-FAQ
-
-1. Admin Menu/Page Returns 404
-
-• Ensure paths in `plugin/acms/config/menu.php` and `plugin/acms/config/route.php` follow `/app/admin/acms/xxx`.
-
-• Clear Webman cache (delete cached files in `runtime/`).
-
-• Verify database tables and initial data are correctly imported.
-
-
-2. Route Conflicts or Invalid Routes
-
-• Check `config/route.php` for duplicate route names.
-
-• Ensure the plugin directory is named `acms` and matches route and menu configurations.
-
-
-3. Database Connection Failed
-
-• Verify database settings in `config/database.php` match your environment.
-
-
-Custom Development Suggestions
-
-• Controllers, models, and views follow Webman conventions and can be extended directly.
-
-• Modify `config/menu.php` for custom menus and permissions.
-
-• Customize frontend pages in the `view/` directory.
-
-• Supports batch query optimization for improved performance with large datasets.
-
-• Added article ID association for content aggregation.
-
-• Supports multi-level nesting for categories and menus, with dynamic menu rendering.
-
-
-Contributions & Feedback
-
-For suggestions or issues, please submit an Issue or PR.
+## Contribution and Feedback
+If you have any suggestions or issues, please submit an Issue or PR.
 
 ---
 
-Author: ouyangyi  
-License: MIT
+**Author**: ouyangyi  
+**Open Source License**: MIT
+```
